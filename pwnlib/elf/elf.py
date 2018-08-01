@@ -286,9 +286,9 @@ class ELF(ELFFile):
         # Try to figure out if we have a kernel configuration embedded
         IKCFG_ST='IKCFG_ST'
 
-        for start in self.search(IKCFG_ST):
+        for start in self.search(IKCFG_ST, append_zero=False):
             start += len(IKCFG_ST)
-            stop = next(self.search('IKCFG_ED'))
+            stop = next(self.search('IKCFG_ED', append_zero=False))
 
             fileobj = StringIO.StringIO(self.read(start, stop-start))
 
@@ -884,7 +884,7 @@ class ELF(ELFFile):
 
         self.config['version'] = self.version
 
-    def search(self, needle, writable = False, append_zero = False):
+    def search(self, needle, writable = False, append_zero = True):
         """search(needle, writable = False) -> generator
 
         Search the ELF's virtual address space for the specified string.
