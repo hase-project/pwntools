@@ -884,7 +884,7 @@ class ELF(ELFFile):
 
         self.config['version'] = self.version
 
-    def search(self, needle, writable = False):
+    def search(self, needle, writable = False, append_zero = False):
         """search(needle, writable = False) -> generator
 
         Search the ELF's virtual address space for the specified string.
@@ -929,7 +929,8 @@ class ELF(ELFFile):
             zeroed = memsz - seg.header.p_filesz
             offset = seg.header.p_offset
             data   = self.mmap[offset:offset+memsz]
-            data   += '\x00' * zeroed
+	    if append_zero:
+                data   += '\x00' * zeroed
             offset = 0
             while True:
                 offset = data.find(needle, offset)
