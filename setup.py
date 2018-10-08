@@ -80,7 +80,7 @@ except Exception as e:
 
 setup(
     name                 = 'pwntools',
-    python_requires      = '~=2.7',
+    python_requires      = '>3.3',
     packages             = find_packages(),
     version              = '3.14.0dev',
     data_files           = [('',
