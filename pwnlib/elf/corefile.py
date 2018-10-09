@@ -645,7 +645,7 @@ class Corefile(ELF):
 
             for mapping in self.mappings:
                 if mapping.start == start:
-                    mapping.name = filename
+                    mapping.name = filename.decode("utf-8")
                     mapping.page_offset = offset
 
         self.mappings = sorted(self.mappings, key=lambda m: m.start)
