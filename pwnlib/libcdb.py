@@ -8,7 +8,7 @@ import codecs
 import json
 import os
 import tempfile
-import urlparse
+from urllib.parse import urljoin
 
 from pwnlib.context import context
 from pwnlib.elf import ELF
@@ -50,7 +50,7 @@ def search_by_hash(hex_encoded_id, hash_type='build_id'):
 
     # Build the URL using the requested hash type
     url_base = "https://gitlab.com/libcdb/libcdb/raw/master/hashes/%s/" % hash_type
-    url      = urlparse.urljoin(url_base, hex_encoded_id)
+    url      = urljoin(url_base, hex_encoded_id)
 
     data   = ""
     while not data.startswith('\x7fELF'):
@@ -64,7 +64,7 @@ def search_by_hash(hex_encoded_id, hash_type='build_id'):
         # GitLab serves up symlinks with
         if data.startswith('..'):
             url = os.path.dirname(url) + '/'
-            url = urlparse.urljoin(url, data)
+            url = urljoin(url, data)
 
     # Save whatever we got to the cache
     write(cache, data or '')

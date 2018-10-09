@@ -106,7 +106,7 @@ def pack(number, word_size = None, endianness = None, sign = None, **kwargs):
         endianness = context.endianness
         sign       = context.sign
 
-        if not isinstance(number, (int,long)):
+        if not isinstance(number, int):
             raise ValueError("pack(): number must be of type (int,long) (got %r)" % type(number))
 
         if sign not in [True, False]:
@@ -128,7 +128,7 @@ def pack(number, word_size = None, endianness = None, sign = None, **kwargs):
                 if sign == False:
                     raise ValueError("pack(): number does not fit within word_size")
                 word_size = ((number + 1).bit_length() | 7) + 1
-        elif not isinstance(word_size, (int, long)) or word_size <= 0:
+        elif not isinstance(word_size, int) or word_size <= 0:
             raise ValueError("pack(): word_size must be a positive integer or the string 'all'")
 
         if sign == True:
@@ -148,13 +148,13 @@ def pack(number, word_size = None, endianness = None, sign = None, **kwargs):
         out = []
 
         for _ in range(byte_size):
-            out.append(chr(number & 0xff))
+            out.append(number & 0xff)
             number = number >> 8
 
         if endianness == 'little':
-            return ''.join(out)
+            return bytes(out)
         else:
-            return ''.join(reversed(out))
+            return bytes(reversed(out))
 
 @LocalContext
 def unpack(data, word_size = None):
@@ -203,7 +203,7 @@ def unpack(data, word_size = None):
     # Verify that word_size make sense
     if word_size == 'all':
         word_size = len(data) * 8
-    elif not isinstance(word_size, (int, long)) or word_size <= 0:
+    elif not isinstance(word_size, int) or word_size <= 0:
         raise ValueError("unpack(): word_size must be a positive integer or the string 'all'")
 
     byte_size = (word_size + 7) // 8
@@ -496,14 +496,14 @@ def _fit(pieces, preprocessor, packer, filler):
     pieces_ = dict()
     large_key = 2**(context.word_size-8)
     for k, v in pieces.items():
-        if isinstance(k, (int, long)):
+        if isinstance(k, int):
             if k >= large_key:
                 k = fill(pack(k))
-        elif isinstance(k, unicode):
+        elif isinstance(k, str):
             k = fill(k.encode('utf8'))
         elif isinstance(k, bytearray):
             k = fill(str(k))
-        elif isinstance(k, str):
+        elif isinstance(k, bytes):
             k = fill(k)
         else:
             raise TypeError("flat(): offset must be of type int or str, but got '%s'" % type(k))

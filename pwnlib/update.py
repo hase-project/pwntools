@@ -19,7 +19,7 @@ import datetime
 import json
 import os
 import time
-import xmlrpclib
+from xmlrpc.client import ServerProxy
 
 import packaging.version
 
@@ -45,7 +45,7 @@ def available_on_pypi(prerelease=current_version.is_prerelease):
     >>> available_on_pypi(prerelease=False).is_prerelease
     False
     """
-    client = xmlrpclib.ServerProxy('https://pypi.python.org/pypi')
+    client = ServerProxy('https://pypi.python.org/pypi')
     versions = client.package_releases('pwntools', True)
     versions = map(packaging.version.Version, versions)
 

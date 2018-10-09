@@ -7,7 +7,7 @@ import random
 import re
 import os
 import string
-import StringIO
+from io import StringIO
 
 from pwnlib.context import context
 from pwnlib.log import getLogger
@@ -426,8 +426,8 @@ def xor_key(data, avoid='\x00\n', size=None):
 
     return result, xor(data, result)
 
-def randoms(count, alphabet = string.lowercase):
-    """randoms(count, alphabet = string.lowercase) -> str
+def randoms(count, alphabet = string.ascii_lowercase):
+    """randoms(count, alphabet = string.ascii_lowercase) -> str
 
     Returns a random string of a given length using only the specified alphabet.
 

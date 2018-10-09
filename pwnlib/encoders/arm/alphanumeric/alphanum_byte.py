@@ -1,6 +1,6 @@
 from __future__ import division
 
-import random_funcs
+from . import random_funcs
 
 # +------------------------------------------------------------------------+ 
 # |                    ALPHANUMERIC MANIPULATIONS FUNCTIONS                | 

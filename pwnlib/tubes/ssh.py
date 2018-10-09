@@ -30,7 +30,7 @@ from pwnlib.util.sh_string import sh_string
 # Kill the warning line:
 # No handlers could be found for logger "paramiko.transport"
 paramiko_log = logging.getLogger("paramiko.transport")
-h = logging.StreamHandler(file('/dev/null','w+'))
+h = logging.StreamHandler(open('/dev/null','w+'))
 h.setFormatter(logging.Formatter())
 paramiko_log.addHandler(h)
 
@@ -186,8 +186,8 @@ class ssh_channel(sock):
                 time.sleep(min(self.timeout, 0.05))
         return False
 
-    def interactive(self, prompt = term.text.bold_red('$') + ' '):
-        """interactive(prompt = pwnlib.term.text.bold_red('$') + ' ')
+    def interactive(self, prompt = term.text.bold_red(b'$') + b' '):
+        """interactive(prompt = pwnlib.term.text.bold_red(b'$') + b' ')
 
         If not in TTY-mode, this does exactly the same as
         meth:`pwnlib.tubes.tube.tube.interactive`, otherwise

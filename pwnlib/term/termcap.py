@@ -11,7 +11,7 @@ def get(cap, *args, **kwargs):
     default = kwargs.pop('default', '')
 
     if 'PWNLIB_NOTERM' in os.environ:
-        return ''
+        return default
 
     # Hack for readthedocs.org
     if 'READTHEDOCS' in os.environ:

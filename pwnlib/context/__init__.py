@@ -1264,7 +1264,7 @@ class ContextType(object):
         if len(set(alphabet)) != len(alphabet):
             raise AttributeError("cyclic alphabet cannot contain duplicates")
 
-        return str(alphabet)
+        return bytes(alphabet)
 
     @_validator
     def cyclic_size(self, size):
@@ -1393,7 +1393,7 @@ def LocalContext(function):
         if not kw:
             return function(*a)
 
-        with context.local(**{k:kw.pop(k) for k,v in kw.items() if isinstance(getattr(ContextType, k, None), property)}):
+        with context.local(**{k:kw.pop(k) for k,v in kw.copy().items() if isinstance(getattr(ContextType, k, None), property)}):
             return function(*a, **kw)
     return setter
 

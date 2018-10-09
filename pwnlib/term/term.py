@@ -32,7 +32,7 @@ on_winch = []
 settings = None
 _graphics_mode = False
 
-fd = sys.stdout
+fd = sys.stdout.buffer
 
 def show_cursor():
     do('cnorm')
@@ -93,7 +93,7 @@ def resetterm():
         termios.tcsetattr(fd.fileno(), termios.TCSADRAIN, settings)
     show_cursor()
     do('rmkx')
-    fd.write(' \x08') # XXX: i don't know why this is needed...
+    fd.write(b' \x08') # XXX: i don't know why this is needed...
                       #      only necessary when suspending the process
 
 def init():
@@ -103,15 +103,15 @@ def init():
     signal.signal(signal.SIGTSTP, handler_sigstop)
     signal.signal(signal.SIGCONT, handler_sigcont)
     # we start with one empty cell at the current cursor position
-    put('\x1b[6n')
+    put(b'\x1b[6n')
     fd.flush()
-    s = ''
+    s = b''
     while True:
         c = os.read(fd.fileno(), 1)
         s += c
-        if c == 'R':
+        if c == b'R':
             break
-    row, col = re.findall('\x1b' + r'\[(\d*);(\d*)R', s)[0]
+    row, col = re.findall(b'\x1b' + b'\[(\d*);(\d*)R', s)[0]
     row = int(row) - height
     col = int(col) - 1
     cell = Cell()

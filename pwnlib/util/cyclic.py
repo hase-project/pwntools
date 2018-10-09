@@ -211,8 +211,15 @@ def cyclic_find(subseq, alphabet = None, n = None):
     if n is None:
         n = context.cyclic_size
 
-    if isinstance(subseq, (int, long)):
-        subseq = packing.pack(subseq, bytes=n)
+    if alphabet is None:
+        alphabet = context.cyclic_alphabet
+
+    if isinstance(subseq, int):
+        width = 'all' if n is None else n * 8
+        subseq = packing.pack(subseq, width, 'little', False)
+
+        if isinstance(alphabet, str): # subseq and alphabet should have the same type
+            alphabet = alphabet.encode('utf8')
 
     if len(subseq) != n:
         log.warn_once("cyclic_find() expects %i-byte subsequences by default, you gave %r\n"\
@@ -220,9 +227,6 @@ def cyclic_find(subseq, alphabet = None, n = None):
             + "Truncating the data at 4 bytes.  Specify cyclic_find(..., n=%i) to override this.",
             n, subseq, len(subseq), len(subseq))
         subseq = subseq[:n]
-
-    if alphabet is None:
-        alphabet = context.cyclic_alphabet
 
     if any(c not in alphabet for c in subseq):
         return -1

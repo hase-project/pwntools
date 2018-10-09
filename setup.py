@@ -61,7 +61,7 @@ install_requires     = ['paramiko>=1.15.2',
                         'psutil>=3.3.0',
                         'intervaltree',
                         'sortedcontainers<2.0', # See Gallopsled/pwntools#1154
-                        'unicorn']
+                        'unicorn>=1.0-rc3']
 
 # Check that the user has installed the Python development headers
 PythonH = os.path.join(get_python_inc(), 'Python.h')

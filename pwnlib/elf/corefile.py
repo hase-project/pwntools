@@ -70,7 +70,7 @@ import gzip
 import re
 import os
 import socket
-import StringIO
+from io import StringIO
 import tempfile
 
 import elftools
@@ -574,19 +574,19 @@ class Corefile(ELF):
                        note.n_descsz == ctypes.sizeof(prstatus_type) and \
                        note.n_type in ('NT_GNU_ABI_TAG', 'NT_PRSTATUS'):
                         self.NT_PRSTATUS = note
-                        self.prstatus = prstatus_type.from_buffer_copy(note.n_desc)
+                        self.prstatus = prstatus_type.from_buffer_copy(note.n_desc.encode("latin-1"))
 
                     # Try to find NT_PRPSINFO
                     if prpsinfo_type and \
                        note.n_descsz == ctypes.sizeof(prpsinfo_type) and \
                        note.n_type in ('NT_GNU_ABI_TAG', 'NT_PRPSINFO'):
                         self.NT_PRPSINFO = note
-                        self.prpsinfo = prpsinfo_type.from_buffer_copy(note.n_desc)
+                        self.prpsinfo = prpsinfo_type.from_buffer_copy(note.n_desc.encode("latin-1"))
 
                     # Try to find NT_SIGINFO so we can see the fault
                     if note.n_type in (0x53494749, 'NT_SIGINFO'):
                         self.NT_SIGINFO = note
-                        self.siginfo = siginfo_type.from_buffer_copy(note.n_desc)
+                        self.siginfo = siginfo_type.from_buffer_copy(note.n_desc.encode("latin-1"))
 
                     # Try to find the list of mapped files
                     if note.n_type in (constants.NT_FILE, 'NT_FILE'):
@@ -625,7 +625,7 @@ class Corefile(ELF):
 
     def _parse_nt_file(self, note):
         t = tube()
-        t.unrecv(note.n_desc)
+        t.unrecv(note.n_desc.encode("latin-1"))
 
         count = t.unpack()
         page_size = t.unpack()
@@ -640,7 +640,7 @@ class Corefile(ELF):
             starts.append((start, offset))
 
         for i in range(count):
-            filename = t.recvuntil('\x00', drop=True)
+            filename = t.recvuntil(b'\x00', drop=True)
             (start, offset) = starts[i]
 
             for mapping in self.mappings:
@@ -659,6 +659,7 @@ class Corefile(ELF):
                 mapping.name = '[vsyscall]'
                 vsyscall = True
                 continue
+
 
             if mapping.start == self.at_sysinfo_ehdr \
             or (not vdso and mapping.size in [0x1000, 0x2000] \
@@ -875,7 +876,7 @@ class Corefile(ELF):
 
     def _parse_auxv(self, note):
         t = tube()
-        t.unrecv(note.n_desc)
+        t.unrecv(note.n_desc.encode("latin-1"))
 
         for i in range(0, note.n_descsz, context.bytes * 2):
             key = t.unpack()
@@ -887,7 +888,7 @@ class Corefile(ELF):
             #
             # 0x7fffffffefe8  53 3d 31 34  33 00 2f 62  69 6e 2f 62  61 73 68 00  |S=14|3./b|in/b|ash.|
             # 0x7fffffffeff8  00 00 00 00  00 00 00 00                            |....|....|    |    |
-
+ 
             if key == constants.AT_EXECFN:
                 self.at_execfn = value
                 value = value & ~0xfff
@@ -914,7 +915,7 @@ class Corefile(ELF):
             return
 
         # If the stack does not end with zeroes, something is very wrong.
-        if not stack.data.endswith('\x00' * 8):
+        if not stack.data.endswith(b'\x00' * 8):
             log.warn_once("End of the stack is corrupted, skipping stack parsing (got: %s)",
                           enhex(self.data[-8:]))
             return
@@ -926,16 +927,15 @@ class Corefile(ELF):
             address = stack.stop
             address -= 2*self.bytes
             address -= 1
-            address = stack.rfind('\x00', None, address)
+            address = stack.rfind(b'\x00', None, address)
             address += 1
             self.at_execfn = address
 
         address = self.at_execfn-1
 
-
         # Sanity check!
         try:
-            assert stack[address] == '\x00'
+            assert stack[address] == b'\x00'
         except AssertionError:
             # Something weird is happening.  Just don't touch it.
             log.debug("Something is weird")
@@ -949,7 +949,7 @@ class Corefile(ELF):
 
         # address is currently set to the NULL terminator of the last
         # environment variable.
-        address = stack.rfind('\x00', None, address)
+        address = stack.rfind(b'\x00', None, address)
 
         # We've found the beginning of the last environment variable.
         # We should be able to search up the stack for the envp[] array to
@@ -989,7 +989,7 @@ class Corefile(ELF):
             except Exception:
                 continue
 
-            name, value = name_value.split('=', 1)
+            name, value = name_value.split(b'=', 1)
 
             # "end" points at the byte after the null terminator
             end = pointer + len(name_value) + 1

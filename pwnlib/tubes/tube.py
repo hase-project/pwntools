@@ -31,7 +31,7 @@ class tube(Timeout, Logger):
 
     #: Delimiter to use for :meth:`sendline`, :meth:`recvline`,
     #: and related functions.
-    newline = '\n'
+    newline = b'\n'
 
     def __init__(self, timeout = default, level = None, *a, **kw):
         super(tube, self).__init__(timeout)
@@ -76,7 +76,7 @@ class tube(Timeout, Logger):
                 'Hello, world'
         """
         numb = self.buffer.get_fill_size(numb)
-        return self._recv(numb, timeout) or ''
+        return self._recv(numb, timeout) or b''
 
     def unrecv(self, data):
         """unrecv(data)
@@ -121,7 +121,7 @@ class tube(Timeout, Logger):
             >>> len(t.buffer)
             3
         """
-        data = ''
+        data = b''
 
         with self.local(timeout):
             data = self.recv_raw(self.buffer.get_fill_size())
@@ -150,12 +150,12 @@ class tube(Timeout, Logger):
         buffer is empty.
         """
         numb = self.buffer.get_fill_size(numb)
-        data = ''
+        data = b''
 
         # No buffered data, could not put anything in the buffer
         # before timeout.
         if not self.buffer and not self._fillbuffer(timeout):
-            return ''
+            return b''
 
         return self.buffer.get(numb)
 
@@ -180,7 +180,7 @@ class tube(Timeout, Logger):
             or ``''`` if a timeout occurred while waiting.
         """
 
-        data = ''
+        data = b''
 
         with self.countdown(timeout):
             while not pred(data):
@@ -188,13 +188,13 @@ class tube(Timeout, Logger):
                     res = self.recv(1)
                 except Exception:
                     self.unrecv(data)
-                    return ''
+                    return b''
 
                 if res:
                     data += res
                 else:
                     self.unrecv(data)
-                    return ''
+                    return b''
 
         return data
 
@@ -240,7 +240,7 @@ class tube(Timeout, Logger):
                 pass
 
         if len(self.buffer) < numb:
-            return ''
+            return b''
 
         return self.buffer.get(numb)
 
@@ -290,7 +290,7 @@ class tube(Timeout, Logger):
 
         """
         # Convert string into singleton tupple
-        if isinstance(delims, (str, unicode)):
+        if isinstance(delims, (str, bytes)):
             delims = (delims,)
 
         # Longest delimiter for tracking purposes
@@ -298,19 +298,19 @@ class tube(Timeout, Logger):
 
         # Cumulative data to search
         data = []
-        top = ''
+        top = b''
 
         with self.countdown(timeout):
             while self.countdown_active():
                 try:
                     res = self.recv(timeout=self.timeout)
                 except Exception:
-                    self.unrecv(''.join(data) + top)
+                    self.unrecv(b''.join(data) + top)
                     raise
 
                 if not res:
-                    self.unrecv(''.join(data) + top)
-                    return ''
+                    self.unrecv(b''.join(data) + top)
+                    return b''
 
                 top += res
                 start = len(top)
@@ -325,13 +325,13 @@ class tube(Timeout, Logger):
                         top = top[:start]
                     else:
                         top = top[:end]
-                    return ''.join(data) + top
+                    return b''.join(data) + top
                 if len(top) > longest:
                     i = -longest - 1
                     data.append(top[:i])
                     top = top[i:]
 
-        return ''
+        return b''
 
     def recvlines(self, numlines=2**20, keepends = False, timeout = default):
         r"""recvlines(numlines, keepends = False, timeout = default) -> str list
@@ -377,7 +377,7 @@ class tube(Timeout, Logger):
                     # in the event of a timeout.
                     res = self.recvline(keepends=True, timeout=timeout)
                 except Exception:
-                    self.unrecv(''.join(lines))
+                    self.unrecv(b''.join(lines))
                     raise
 
                 if res:
@@ -452,7 +452,7 @@ class tube(Timeout, Logger):
         """
 
         tmpbuf = Buffer()
-        line   = ''
+        line   = b''
         with self.countdown(timeout):
             while self.countdown_active():
                 try:
@@ -463,7 +463,7 @@ class tube(Timeout, Logger):
 
                 if not line:
                     self.buffer.add(tmpbuf)
-                    return ''
+                    return b''
 
                 if pred(line):
                     if not keepends:
@@ -472,7 +472,7 @@ class tube(Timeout, Logger):
                 else:
                     tmpbuf.add(line)
 
-        return ''
+        return b''
 
     def recvline_contains(self, items, keepends = False, timeout = default):
         r"""
@@ -707,7 +707,7 @@ class tube(Timeout, Logger):
                 self.indented(fiddling.hexdump(data), level = logging.DEBUG)
         self.send_raw(data)
 
-    def sendline(self, line=''):
+    def sendline(self, line=b''):
         r"""sendline(data)
 
         Shorthand for ``t.send(data + t.newline)``.
@@ -765,8 +765,8 @@ class tube(Timeout, Logger):
         self.send(data + self.newline)
         return self.recvuntil(delim, timeout)
 
-    def interactive(self, prompt = term.text.bold_red('$') + ' '):
-        """interactive(prompt = pwnlib.term.text.bold_red('$') + ' ')
+    def interactive(self, prompt = term.text.bold_red(b'$') + b' '):
+        """interactive(prompt = pwnlib.term.text.bold_red('$') + b' ')
 
         Does simultaneous reading and writing to the tube. In principle this just
         connects the tube to standard in and standard out, but in practice this
@@ -783,7 +783,7 @@ class tube(Timeout, Logger):
             while not go.isSet():
                 try:
                     cur = self.recv(timeout = 0.05)
-                    cur = cur.replace('\r\n', '\n')
+                    cur = cur.replace(b'\r\n', b'\n')
                     if cur:
                         sys.stdout.write(cur)
                         sys.stdout.flush()
@@ -932,7 +932,7 @@ class tube(Timeout, Logger):
         def pump():
             import sys as _sys
             while self.countdown_active():
-                if not (self.connected('send') and other.connected('recv')):
+                if not (self.connected(b'send') and other.connected(b'recv')):
                     break
 
                 try:
@@ -954,8 +954,8 @@ class tube(Timeout, Logger):
                 if not _sys:
                     return
 
-            self.shutdown('send')
-            other.shutdown('recv')
+            self.shutdown(b'send')
+            other.shutdown(b'recv')
 
         t = context.Thread(target = pump)
         t.daemon = True

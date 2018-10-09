@@ -42,7 +42,7 @@ import gzip
 import mmap
 import os
 import re
-import StringIO
+from io import StringIO
 import subprocess
 
 from collections import namedtuple
@@ -219,7 +219,7 @@ class ELF(ELFFile):
         #:
         #: See: :attr:`.ContextType.arch`
         self.arch = self.get_machine_arch()
-        if isinstance(self.arch, (str, unicode)):
+        if isinstance(self.arch, (str, bytes)):
             self.arch = self.arch.lower()
 
         #: :class:`dotdict` of ``name`` to ``address`` for all symbols in the ELF
@@ -278,8 +278,8 @@ class ELF(ELFFile):
             self.native = False
 
         self._address = 0
-        if self.elftype != 'DYN':
-            for seg in self.iter_segments_by_type('PT_LOAD'):
+        if self.elftype != b'DYN':
+            for seg in self.iter_segments_by_type(b'PT_LOAD'):
                 addr = seg.header.p_vaddr
                 if addr == 0:
                     continue
@@ -289,13 +289,13 @@ class ELF(ELFFile):
         self.load_addr = self._address
 
         # Try to figure out if we have a kernel configuration embedded
-        IKCFG_ST='IKCFG_ST'
+        IKCFG_ST=b'IKCFG_ST'
 
         for start in self.search(IKCFG_ST):
             start += len(IKCFG_ST)
-            stop = next(self.search('IKCFG_ED'))
+            stop = next(self.search(b'IKCFG_ED'))
 
-            fileobj = StringIO.StringIO(self.read(start, stop-start))
+            fileobj = StringIO(self.read(start, stop-start))
 
             # Python gzip throws an exception if there is non-Gzip data
             # after the Gzip stream.
@@ -308,12 +308,12 @@ class ELF(ELFFile):
                 self.config = parse_kconfig(config)
 
         #: ``True`` if the ELF is a statically linked executable
-        self.statically_linked = bool(self.elftype == 'EXEC' and self.load_addr)
+        self.statically_linked = bool(self.elftype == b'EXEC' and self.load_addr)
 
         #: ``True`` if the ELF is an executable
-        self.executable = bool(self.elftype == 'EXEC')
+        self.executable = bool(self.elftype == b'EXEC')
 
-        for seg in self.iter_segments_by_type('PT_INTERP'):
+        for seg in self.iter_segments_by_type(b'PT_INTERP'):
             self.executable = True
 
             #: ``True`` if the ELF is statically linked
@@ -321,16 +321,16 @@ class ELF(ELFFile):
 
             #: Path to the linker for the ELF
             self.linker = self.read(seg.header.p_vaddr, seg.header.p_memsz)
-            self.linker = self.linker.rstrip('\x00')
+            self.linker = self.linker.rstrip(b'\x00')
 
         #: Operating system of the ELF
-        self.os = 'linux'
+        self.os = b'linux'
 
-        if self.linker and self.linker.startswith('/system/bin/linker'):
+        if self.linker and self.linker.startswith(b'/system/bin/linker'):
             self.os = 'android'
 
         #: ``True`` if the ELF is a shared library
-        self.library = not self.executable and self.elftype == 'DYN'
+        self.library = not self.executable and self.elftype == b'DYN'
 
         try:
             self._populate_symbols()
@@ -438,8 +438,8 @@ class ELF(ELFFile):
         return pwnlib.gdb.debug([self.path] + argv, *a, **kw)
 
     def _describe(self, *a, **kw):
-        log.info_once('\n'.join((repr(self.path),
-                                '%-10s%s-%s-%s' % ('Arch:', self.arch, self.bits, self.endian),
+        log.info_once(b'\n'.join((repr(self.path).encode("utf-8"),
+                                b'%-10s%s-%s-%s' % (b'Arch:', self.arch.encode("utf-8"), str(self.bits).encode('utf-8'), self.endian.encode("utf-8")),
                                 self.checksec(*a, **kw))))
 
     def __repr__(self):
@@ -486,7 +486,7 @@ class ELF(ELFFile):
             Segments matching the specified type.
         """
         for seg in self.iter_segments():
-            if t == seg.header.p_type or t in str(seg.header.p_type):
+            if t == seg.header.p_type or (isinstance(seg.header.p_type, str) and t in seg.header.p_type.encode("utf-8")):
                 yield seg
 
     @property
@@ -636,13 +636,13 @@ class ELF(ELFFile):
         """
 
         # We need a .dynamic section for dynamically linked libraries
-        if not self.get_section_by_name('.dynamic') or self.statically_linked:
+        if not self.get_section_by_name(b'.dynamic') or self.statically_linked:
             self.libs= {}
             return
 
         # We must also specify a 'PT_INTERP', otherwise it's a 'statically-linked'
         # binary which is also position-independent (and as such has a .dynamic).
-        for segment in self.iter_segments_by_type('PT_INTERP'):
+        for segment in self.iter_segments_by_type(b'PT_INTERP'):
             break
         else:
             self.libs = {}
@@ -680,7 +680,7 @@ class ELF(ELFFile):
 
             for sym in sec.iter_symbols():
                 # Avoid duplicates
-                if self.functions.has_key(sym.name):
+                if sym.name in self.functions:
                     continue
                 if sym.entry.st_info['type'] == 'STT_FUNC' and sym.entry.st_size != 0:
                     name = sym.name
@@ -934,7 +934,7 @@ class ELF(ELFFile):
             zeroed = memsz - seg.header.p_filesz
             offset = seg.header.p_offset
             data   = self.mmap[offset:offset+memsz]
-            data   += '\x00' * zeroed
+            data   += b'\x00' * zeroed
             offset = 0
             while True:
                 offset = data.find(needle, offset)
@@ -980,7 +980,7 @@ class ELF(ELFFile):
         return None
 
     def _populate_memory(self):
-        load_segments = filter(lambda s: s.header.p_type == 'PT_LOAD', self.iter_segments())
+        load_segments = list(filter(lambda s: s.header.p_type == 'PT_LOAD', self.iter_segments()))
 
         # Map all of the segments
         for i, segment in enumerate(load_segments):
@@ -1123,7 +1123,7 @@ class ELF(ELFFile):
         retval = []
 
         if count == 0:
-            return ''
+            return b''
 
         start = address
         stop = address + count
@@ -1132,8 +1132,8 @@ class ELF(ELFFile):
 
         # Create a new view of memory, for just what we need
         memory = intervaltree.IntervalTree(overlap)
-        memory.chop(None, start)
-        memory.chop(stop, None)
+        memory.chop(0, start)
+        memory.chop(stop, memory.end())
 
         if memory.begin() != start:
             log.error("Address %#x is not contained in %s" % (start, self))
@@ -1145,8 +1145,8 @@ class ELF(ELFFile):
         for begin, end, data in sorted(memory):
             length = end-begin
 
-            if data in (None, '\x00'):
-                retval.append('\x00' * length)
+            if data in (None, b'\x00'):
+                retval.append(b'\x00' * length)
                 continue
 
             # Offset within VMA range
@@ -1163,7 +1163,7 @@ class ELF(ELFFile):
 
             retval.append(self.mmap[offset:offset+length])
 
-        return ''.join(retval)
+        return b''.join(retval)
 
     def write(self, address, data):
         """Writes data to the specified virtual address
@@ -1315,11 +1315,11 @@ class ELF(ELFFile):
             return None
 
         address   = dt_strtab.entry.d_ptr + offset
-        string    = ''
-        while '\x00' not in string:
+        string    = b''
+        while b'\x00' not in string:
             string  += self.read(address, 1)
             address += 1
-        return string.rstrip('\x00')
+        return string.rstrip(b'\x00')
 
 
 
@@ -1425,7 +1425,7 @@ class ELF(ELFFile):
         if not self.executable:
             return True
 
-        for seg in self.iter_segments_by_type('GNU_STACK'):
+        for seg in self.iter_segments_by_type(b'GNU_STACK'):
             return not bool(seg.header.p_flags & P_FLAGS.PF_X)
 
         # If you NULL out the PT_GNU_STACK section via ELF.disable_nx(),
@@ -1484,7 +1484,7 @@ class ELF(ELFFile):
 
         # If the ``PT_GNU_STACK`` program header is missing, then use the
         # default rules.  Only AArch64 gets a non-executable stack by default.
-        for _ in self.iter_segments_by_type('GNU_STACK'):
+        for _ in self.iter_segments_by_type(b'GNU_STACK'):
             break
         else:
             return self.arch != 'aarch64'
@@ -1502,7 +1502,7 @@ class ELF(ELFFile):
     @property
     def packed(self):
         """:class:`bool`: Whether the current binary is packed with UPX."""
-        return 'UPX!' in self.get_data()
+        return b'UPX!' in self.get_data()
 
     @property
     def pie(self):
@@ -1546,61 +1546,61 @@ class ELF(ELFFile):
 
         # Kernel version?
         if self.version and self.version != (0,):
-            res.append('Version:'.ljust(10) + '.'.join(map(str, self.version)))
+            res.append(b'Version:'.ljust(10) + b'.'.join(map(str, self.version)))
         if self.build:
-            res.append('Build:'.ljust(10) + self.build)
+            res.append(b'Build:'.ljust(10) + self.build)
 
         res.extend([
-            "RELRO:".ljust(10) + {
-                'Full':    green("Full RELRO"),
-                'Partial': yellow("Partial RELRO"),
-                None:      red("No RELRO")
+            b"RELRO:".ljust(10) + {
+                'Full':    green(b"Full RELRO"),
+                'Partial': yellow(b"Partial RELRO"),
+                None:      red(b"No RELRO")
             }[self.relro],
-            "Stack:".ljust(10) + {
-                True:  green("Canary found"),
-                False: red("No canary found")
+            b"Stack:".ljust(10) + {
+                True:  green(b"Canary found"),
+                False: red(b"No canary found")
             }[self.canary],
-            "NX:".ljust(10) + {
-                True:  green("NX enabled"),
-                False: red("NX disabled"),
+            b"NX:".ljust(10) + {
+                True:  green(b"NX enabled"),
+                False: red(b"NX disabled"),
             }[self.nx],
-            "PIE:".ljust(10) + {
-                True: green("PIE enabled"),
-                False: red("No PIE (%#x)" % self.address)
+            b"PIE:".ljust(10) + {
+                True: green(b"PIE enabled"),
+                False: red(b"No PIE (%#x)" % self.address)
             }[self.pie],
         ])
 
         # Execstack may be a thing, even with NX enabled, because of glibc
         if self.execstack and self.nx:
-            res.append("Stack:".ljust(10) + red("Executable"))
+            res.append(b"Stack:".ljust(10) + red(b"Executable"))
 
         # Are there any RWX areas in the binary?
         #
         # This will occur if NX is disabled and *any* area is
         # RW, or can expressly occur.
         if self.rwx_segments or (not self.nx and self.writable_segments):
-            res += [ "RWX:".ljust(10) + red("Has RWX segments") ]
+            res += [ b"RWX:".ljust(10) + red(b"Has RWX segments") ]
 
         if self.rpath:
-            res += [ "RPATH:".ljust(10) + red(repr(self.rpath)) ]
+            res += [ b"RPATH:".ljust(10) + red(repr(self.rpath).encode("utf-8")) ]
 
         if self.runpath:
-            res += [ "RUNPATH:".ljust(10) + red(repr(self.runpath)) ]
+            res += [ b"RUNPATH:".ljust(10) + red(repr(self.runpath).encode("utf-8")) ]
 
         if self.packed:
-            res.append('Packer:'.ljust(10) + red("Packed with UPX"))
+            res.append(b'Packer:'.ljust(10) + red(b"Packed with UPX"))
 
         if self.fortify:
-            res.append("FORTIFY:".ljust(10) + green("Enabled"))
+            res.append(b"FORTIFY:".ljust(10) + green(b"Enabled"))
 
         if self.asan:
-            res.append("ASAN:".ljust(10) + green("Enabled"))
+            res.append(b"ASAN:".ljust(10) + green(b"Enabled"))
 
         if self.msan:
-            res.append("MSAN:".ljust(10) + green("Enabled"))
+            res.append(b"MSAN:".ljust(10) + green(b"Enabled"))
 
         if self.ubsan:
-            res.append("UBSAN:".ljust(10) + green("Enabled"))
+            res.append(b"UBSAN:".ljust(10) + green(b"Enabled"))
 
         # Check for Linux configuration, it must contain more than
         # just the version.
@@ -1623,7 +1623,7 @@ class ELF(ELFFile):
 
             # res.extend(sorted(config_opts))
 
-        return '\n'.join(res)
+        return b'\n'.join(res)
 
     @property
     def buildid(self):
@@ -1723,7 +1723,7 @@ class ELF(ELFFile):
             A ``str`` with the string contents (NUL terminator is omitted),
             or an empty string if no NUL terminator could be found.
         """
-        data = ''
+        data = b''
         while True:
             read_size = 0x1000
             partial_page = address & 0xfff
@@ -1734,12 +1734,12 @@ class ELF(ELFFile):
             c = self.read(address, read_size)
 
             if not c:
-                return ''
+                return b''
 
             data += c
 
-            if '\x00' in c:
-                return data[:data.index('\x00')]
+            if b'\x00' in c:
+                return data[:data.index(b'\x00')]
 
             address += len(c)
 

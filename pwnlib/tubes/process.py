@@ -242,7 +242,7 @@ class process(tube):
             executable, argv, env = self._validate(cwd, executable, argv, env)
 
         # Permit invocation as process('sh') and process(['sh'])
-        if isinstance(argv, (str, unicode)):
+        if isinstance(argv, (str, bytes)):
             argv = [argv]
 
         # Avoid the need to have to deal with the STDOUT magic value.
@@ -333,11 +333,11 @@ class process(tube):
 
         if self.pty is not None:
             if stdin is slave:
-                self.proc.stdin = os.fdopen(os.dup(master), 'r+', 0)
+                self.proc.stdin = os.fdopen(os.dup(master), 'rb+', 0)
             if stdout is slave:
-                self.proc.stdout = os.fdopen(os.dup(master), 'r+', 0)
+                self.proc.stdout = os.fdopen(os.dup(master), 'rb+', 0)
             if stderr is slave:
-                self.proc.stderr = os.fdopen(os.dup(master), 'r+', 0)
+                self.proc.stderr = os.fdopen(os.dup(master), 'rb+', 0)
 
             os.close(master)
             os.close(slave)
@@ -507,21 +507,19 @@ class process(tube):
         # - Must be a list/tuple of strings
         # - Each string must not contain '\x00'
         #
-        if isinstance(argv, (str, unicode)):
+        if isinstance(argv, str):
             argv = [argv]
 
-        if not all(isinstance(arg, (str, unicode)) for arg in argv):
+        if not all(isinstance(arg, (str, bytes)) for arg in argv):
             self.error("argv must be strings: %r" % argv)
 
         # Create a duplicate so we can modify it
         argv = list(argv or [])
 
         for i, arg in enumerate(argv):
-            if '\x00' in arg[:-1]:
+            if isinstance(arg, bytes) and b'\x00' in arg[:-1]:
                 self.error('Inappropriate nulls in argv[%i]: %r' % (i, arg))
-
-            argv[i] = arg.rstrip('\x00')
-
+                argv[i] = arg.rstrip(b'\x00')
         #
         # Validate executable
         #
@@ -533,20 +531,22 @@ class process(tube):
                 self.error("Must specify argv or executable")
             executable = argv[0]
 
-        # Do not change absolute paths to binaries
-        if executable.startswith(os.path.sep):
-            pass
+        if isinstance(executable, str):
+            executable = executable.encode("utf-8")
 
+        # Do not change absolute paths to binaries
+        if executable.startswith(os.path.sep.encode("ascii")):
+            pass
         # If there's no path component, it's in $PATH or relative to the
         # target directory.
         #
         # For example, 'sh'
-        elif os.path.sep not in executable and which(executable):
-            executable = which(executable)
+        elif os.path.sep.encode("ascii") not in executable and which(executable):
+            executable = which(executable).encode("utf-8")
 
         # Either there is a path component, or the binary is not in $PATH
         # For example, 'foo/bar' or 'bar' with cwd=='foo'
-        elif os.path.sep not in executable:
+        elif os.path.sep.encode("ascii") not in executable:
             tmp = executable
             executable = os.path.join(cwd, executable)
             self.warn_once("Could not find executable %r in $PATH, using %r instead" % (tmp, executable))
@@ -569,9 +569,9 @@ class process(tube):
         env = (os.environ if env is None else env).copy()
 
         for k,v in env.items():
-            if not isinstance(k, (str, unicode)):
+            if not isinstance(k, (str, bytes)):
                 self.error('Environment keys must be strings: %r' % k)
-            if not isinstance(k, (str, unicode)):
+            if not isinstance(k, (str, bytes)):
                 self.error('Environment values must be strings: %r=%r' % (k,v))
             if '\x00' in k[:-1]:
                 self.error('Inappropriate nulls in env key: %r' % (k))
