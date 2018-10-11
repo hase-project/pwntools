@@ -27,6 +27,9 @@ def can_init():
     ``pwnlib`` manage the terminal.
     """
 
+    # Don't touch my terminal
+    return False
+
     if not sys.stdout.isatty():
         return False
 
