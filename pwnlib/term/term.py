@@ -35,7 +35,7 @@ _graphics_mode = False
 if hasattr(sys.stdout, "buffer"):
     fd = sys.stdout.buffer
 else:
-    open(os.devnull, "wb")
+    fd = open(os.devnull, "wb")
 
 def show_cursor():
     do('cnorm')
