@@ -934,7 +934,11 @@ class ELF(ELFFile):
             zeroed = memsz - seg.header.p_filesz
             offset = seg.header.p_offset
             data   = self.mmap[offset:offset+memsz]
-            data   += b'\x00' * zeroed
+            try:
+                # can result in large allocations, i.e. if asan is enabled
+                data   += b'\x00' * zeroed
+            except MemoryError:
+                pass
             offset = 0
             while True:
                 offset = data.find(needle, offset)
