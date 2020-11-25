@@ -59,8 +59,7 @@ install_requires     = ['paramiko>=1.15.2',
                         'python-dateutil',
                         'packaging',
                         'psutil>=3.3.0',
-                        # See Gallopsled/pwntools#1154
-                        'intervaltree @ https://github.com/chaimleib/intervaltree/archive/6a731f2ce9f658cd6b8da2f7e23e96642643be54.zip',
+                        'intervaltree>=3.0.0',
                         'unicorn>=1.0-rc3']
 
 # Check that the user has installed the Python development headers
